@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Jogo Pong em HTML</title>
+  <meta charset="UTF-8">
+  <style>
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: rgb(138, 21, 21);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  </style>
+</head>
+<body>
+<canvas width="750" height="585" id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const context = canvas.getContext('2d');
+const grid = 15;
+const paddleHeight = grid * 5; // Altura da raquete é 80
+const maxPaddleY = canvas.height - grid - paddleHeight;
+
+var paddleSpeed = 6; // Velocidade da raquete
+var ballSpeed = 5; // Velocidade da bola
+
+const leftPaddle = {
+  // Começa no meio do jogo no lado esquerdo
+  x: grid * 2,
+  y: canvas.height / 2 - paddleHeight / 2,
+  width: grid,
+  height: paddleHeight,
+
+  // Velocidade da raquete
+  dy: 0
+};
+const rightPaddle = {
+  // Começa no meio do jogo no lado direito
+  x: canvas.width - grid * 3,
+  y: canvas.height / 2 - paddleHeight / 2,
+  width: grid,
+  height: paddleHeight,
+
+  // Velocidade da raquete
+  dy: 0
+};
+const ball = {
+  // Começa no meio do jogo
+  x: canvas.width / 2,
+  y: canvas.height / 2,
+  width: grid,
+  height: grid,
+
+  // Controla quando precisamos resetar a posição da bola
+  resetting: false,
+
+  // Velocidade da bola (começa indo para o canto superior direito)
+  dx: ballSpeed,
+  dy: -ballSpeed
+};
+
+// Verifica colisão entre dois objetos usando axis-aligned bounding box (AABB)
+function collides(obj1, obj2) {
+  return obj1.x < obj2.x + obj2.width &&
+         obj1.x + obj1.width > obj2.x &&
+         obj1.y < obj2.y + obj2.height &&
+         obj1.y + obj1.height > obj2.y;
+}
+
+// Loop do jogo
+function loop() {
+  requestAnimationFrame(loop);
+  context.clearRect(0,0,canvas.width,canvas.height);
+
+  // Move as raquetes pela sua velocidade
+  leftPaddle.y += leftPaddle.dy;
+  rightPaddle.y += rightPaddle.dy;
+
+  // Impede que as raquetes ultrapassem as paredes
+  if (leftPaddle.y < grid) {
+    leftPaddle.y = grid;
+  }
+  else if (leftPaddle.y > maxPaddleY) {
+    leftPaddle.y = maxPaddleY;
+  }
+
+  if (rightPaddle.y < grid) {
+    rightPaddle.y = grid;
+  }
+  else if (rightPaddle.y > maxPaddleY) {
+    rightPaddle.y = maxPaddleY;
+  }
+
+  // Desenha as raquetes
+  context.fillStyle = 'white';
+  context.fillRect(leftPaddle.x, leftPaddle.y, leftPaddle.width, leftPaddle.height);
+  context.fillRect(rightPaddle.x, rightPaddle.y, rightPaddle.width, rightPaddle.height);
+
+  // Move a bola pela sua velocidade
+  ball.x += ball.dx;
+  ball.y += ball.dy;
+
+  // Impede que a bola ultrapasse as paredes mudando sua velocidade
+  if (ball.y < grid) {
+    ball.y = grid;
+    ball.dy *= -1;
+  }
+  else if (ball.y + grid > canvas.height - grid) {
+    ball.y = canvas.height - grid * 2;
+    ball.dy *= -1;
+  }
+
+  // Reseta a bola se ultrapassar a raquete (mas apenas se ainda não tivermos feito isso)
+  if ((ball.x < 0 || ball.x > canvas.width) && !ball.resetting) {
+    ball.resetting = true;
+
+    // Dá um tempo para o jogador se recuperar antes de lançar a bola novamente
+    setTimeout(() => {
+      ball.resetting = false;
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height / 2;
+    }, 400);
+  }
+
+  // Verifica se a bola colide com a raquete. Se sim, muda a velocidade no eixo x
+  if (collides(ball, leftPaddle)) {
+    ball.dx *= -1;
+
+    // Move a bola ao lado da raquete, caso contrário a colisão acontecerá novamente
+    // no próximo quadro
+    ball.x = leftPaddle.x + leftPaddle.width;
+  }
+  else if (collides(ball, rightPaddle)) {
+    ball.dx *= -1;
+
+    // Move a bola ao lado da raquete, caso contrário a colisão acontecerá novamente
+    // no próximo quadro
+    ball.x = rightPaddle.x - ball.width;
+  }
+
+  // Desenha a bola
+  context.fillRect(ball.x, ball.y, ball.width, ball.height);
+
+  // Desenha as paredes
+  context.fillStyle = 'lightgrey';
+  context.fillRect(0, 0, canvas.width, grid);
+  context.fillRect(0, canvas.height - grid, canvas.width, canvas.height);
+
+  // Desenha uma linha pontilhada no meio
+  for (let i = grid; i < canvas.height - grid; i += grid * 2) {
+    context.fillRect(canvas.width / 2 - grid / 2, i, grid, grid);
+  }
+}
+
+// Escuta eventos do teclado para mover as raquetes
+document.addEventListener('keydown', function(e) {
+
+  // Tecla de seta para cima
+  if (e.which === 38) {
+    rightPaddle.dy = -paddleSpeed;
+  }
+  // Tecla de seta para baixo
+  else if (e.which === 40) {
+    rightPaddle.dy = paddleSpeed;
+  }
+
+  // Tecla 'w'
+  if (e.which === 87) {
+    leftPaddle.dy = -paddleSpeed;
+  }
+  // Tecla 'a'
+  else if (e.which === 83) {
+    leftPaddle.dy = paddleSpeed;
+  }
+});
+
+// Escuta eventos do teclado para parar a raquete se a tecla for solta
+document.addEventListener('keyup', function(e) {
+  if (e.which === 38 || e.which === 40) {
+    rightPaddle.dy = 0;
+  }
+
+  if (e.which === 83 || e.which === 87) {
+    leftPaddle.dy = 0;
+  }
+});
+
+// Inicia o jogo
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
